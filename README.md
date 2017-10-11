@@ -1,2 +1,2 @@
 # lstm
-LSTM (and variant) implementations
+Vanilla LSTM implementations.
