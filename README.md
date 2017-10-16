@@ -1,7 +1,7 @@
 # lstm
 Vanilla LSTM implementations.
 
-LSTM - Numpy and Dictionaries is an LSTM implementation that just uses numpy, and dictionaries function as the caches.
+<b>LSTM - Numpy and Dictionaries</b> is an LSTM implementation that just uses numpy, and dictionaries function as the caches.
 
 LSTM - Class is an LSTM implementation using a Python class.
 
