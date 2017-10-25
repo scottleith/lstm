@@ -112,7 +112,7 @@ def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, v
 		# Forward pass, backward pass, parameter update.
 		cache, output = _run_forward_pass( x_batch, y_batch, n_timesteps, cache, parameters )
 		parameters, gradcache = _run_backward_pass( output, y_batch, n_timesteps, cache, gradcache, parameters  )
-		parameters = _apply_gradients( gradcache, learning_rate = .001, parameters )
+		parameters = _apply_gradients( gradcache = gradcache, parameters  = parameters)
 
 	# If y was multidimensional (M features at each timepoint), reshape to fit output layer.
 	y = np.reshape( y_batch,  [y_batch.shape[0], -1 ] )
@@ -227,7 +227,7 @@ def _run_backward_cell_step( t, dh_next, dc_next, cache, gradcache, parameters )
 
 	return dh_next, dc_next, gradcache
 
-def _apply_gradients( gradcache, learning_rate, parameters ):
+def _apply_gradients( gradcache, learning_rate = .001, parameters ):
 
 	''' Performs normal gradient descent updates on the parameters. '''
 
