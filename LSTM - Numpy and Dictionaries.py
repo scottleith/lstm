@@ -227,7 +227,7 @@ def _run_backward_cell_step( t, dh_next, dc_next, cache, gradcache, parameters )
 
 	return dh_next, dc_next, gradcache
 
-def _apply_gradients( gradcache, learning_rate = .001, parameters ):
+def _apply_gradients( gradcache = None, learning_rate = .001, parameters = None ):
 
 	''' Performs normal gradient descent updates on the parameters. '''
 
