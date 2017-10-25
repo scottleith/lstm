@@ -251,17 +251,36 @@ def _apply_gradients( gradcache = None, learning_rate = .001, parameters = None 
 
 #------------------------Time to test
 
+# Function that turns a sequences into x*sinx 
+def x_sin(x): return x*np.sin(x)
+
+# Function that returns both x*sinx and x*cosx
+def x_sin_cos(x):
+    return x*np.sin(x), x*np.cos(x)
+
+data = x_sin( np.linspace(0,100,10000))
+
+data_s, data_c = x_sin_cos(np.linspace(0,100,10000))
+
+test_s = np.reshape( np.array(data_s), [10000,1])
+test_c = np.reshape( np.array(data_c), [10000,1])
+# Stack x*sinx with a reversed x*cosx.
+test = np.hstack( (test_s, test_c[::-1] ) )
+
+# return_datasets is found in LSTM Sample Data Generation
+Xtrain, Ytrain, Xval, Yval = return_datasets( test, timesteps = 12 )
+
 h_size = 25
 mini_batch_size = 128
 learning_rate = .001
-if len( train_set_Y.shape) > 2:
-	n_features = train_set_X.shape[2]
+if len( Xtrain.shape) > 2:
+	n_features = Xtrain.shape[2]
 else:
 	n_features = 1
-n_timesteps = train_set_X.shape[1]
-output_timesteps = train_set_Y.shape[1]
-if len( train_set_Y.shape) > 2:
- 	output_features = train_set_Y.shape[2]
+n_timesteps = Xtrain.shape[1]
+output_timesteps = Ytrain.shape[1]
+if len( Ytrain.shape) > 2:
+ 	output_features = Ytrain.shape[2]
 else: output_features = 1
 mem_cell_size = n_features+h_size
 
@@ -271,7 +290,7 @@ train_err, val_err = [], []
 
 for i in range(1,2000):
 	
-	parameters, traincost, valcost = _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, val_set_X, val_set_Y )
+	parameters, traincost, valcost = _run_batch( Xtrain, Ytrain, parameters, mini_batch_size, h_size, Xval, Yval )
 
 	train_err.append(traincost)
 	val_err.append(valcost)
