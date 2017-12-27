@@ -5,11 +5,12 @@ import gensim
 from copy import deepcopy
 import re
 
+# Load up the text file.
 text_file = open("author-quote.txt", "r")
-lines = text_file.read().split("	") # In the file, quotes are split by line breaks. We want to remove the author names, which are split by tabs.
+# In the file, quotes are split by line breaks. We want to remove the author names, which are split by tabs.
+lines = text_file.read().split("	") 
 
-# Lines is a list with each quote. At the end of each quote is '\n author_name'. So let's remove that.
-
+# Our lines variable is a list with each quote. At the end of each quote is '\n [author_name]'. So let's remove that.
 quotes = [ i.split("\n")[0] for i in lines ] #done!!!
 
 # Now to process the corpus. 
@@ -44,12 +45,13 @@ def clean_text( text ):
 	return text
 
 corpus_raw = [ clean_text(i) for i in corpus_raw ]
+# Cut our sentences into words.
 sentences = [ i.split() for i in corpus_raw ]
+# Sort by length.
 sentences.sort( key = lambda x: len(x) )
 
 # Tokenize into words 'manually', create wordset and method of
 # turning words into integers/indices.
-
 words = []
 
 for sentence in corpus_raw:
@@ -67,7 +69,7 @@ words = list( set(words) ) # A 'set' in Python is an unordered collection of uni
 words.insert(0,"PAD") # Add the ID for our padding value (zero).
 words.insert(1,"<EOS>") # Add the ID for our end-of-sentence token.
 
-
+# Now to create our dictionaries that change words into IDs, and IDs into words:
 word2int = {}
 int2word = {}
 vocab_size = len(words)
@@ -79,9 +81,9 @@ for i,word in enumerate(words):
 	int2word[i] = word
 
 sentences = [i+"<EOS>" for i in corpus_raw] # Add in the end-of-sentence tokens.
-sentences = [ i.split() for i in sentences ]
+sentences = [ i.split() for i in sentences ] # Re-create our sentences with the new tokens.
 sentences.sort( key = lambda x: len(x) )
-sentences.pop(0) # the stupid "aa milne" sentence that won't go away. 
+sentences.pop(0) # Remove a hanging author signature.
 
 # Create word ID dataset
 word_ids = []
@@ -89,22 +91,24 @@ for sentence in sentences:
 	temp = [ word2int[i] for i in sentence ]
 	word_ids.append( temp )
 
-# Time to get the embeddings.
+# Split our quotes data into batches.
 def batch( inputs, max_seq_len = None ):
     seq_len = [len(seq) for seq in inputs]
     batch_size = len(inputs)
     if max_seq_len is None:
         max_seq_len = max(seq_len) 
     inputs_batch_major = np.zeros(shape=[batch_size, max_seq_len], dtype=np.int32) # == PAD 
+    # Apply zero padding to the batch:
     for i, seq in enumerate(inputs):
         pad = np.zeros( ( max_seq_len - len(seq ) ), dtype = np.int32 )
         insert = np.concatenate( (seq, pad) )
         inputs_batch_major[i] = insert
+    # Change our data to be [ num_timesteps, batch_size, num_features ] (i.e., 'time major'):
     inputs_time_major = inputs_batch_major.swapaxes(0, 1)
     return inputs_time_major, seq_len
 
 batches_x = []
-batches_x_seqlen = []
+batches_x_seqlen = [] # We'll have to pass in the respective sequence lengths later on. 
 counter = 0
 batch_size = 100
 inputs = deepcopy(word_ids)
@@ -115,12 +119,12 @@ while counter < len(inputs):
 	batches_x_seqlen.append( currbatch_seqlen)
 	counter = counter+batch_size
 
-
-
+# Time to start making our model!
 enc_hidden_units = 1000
-dec_hidden_units = enc_hidden_units*2 # because the encoder will be bidirectional.
+dec_hidden_units = enc_hidden_units*2 # x2 because the encoder will be bidirectional and produce 2 sets of output.
 embedding_size = 300
 
+# Start 'er up.
 tf.reset_default_graph()
 sess = tf.InteractiveSession()
 
@@ -131,15 +135,15 @@ dec_inp = tf.placeholder( shape = (None, None), dtype = tf.int32, name = "decode
 dec_inp_len = tf.placeholder( shape = (None,), dtype = tf.int32, name = "decoder_input_lengths" ) # Possibly unnecessary. 
 dec_tgt = tf.placeholder( shape = (None, None), dtype = tf.int32, name = "decoder_targets") 
 
-# For when embeddings are provided directly, instead of trained and looked up.
+# For when embeddings are provided directly, instead of trained and looked up:
 # enc_inp_emb = tf.placeholder( shape = (None, None), dtype = tf.float32, name = "encoder_input_embeddings")
 
-# For when embeddings are trained and looked up.
-# NOTE: In this case, enc_inp consists of sequences of word IDs. 
+# For when embeddings are trained and looked up:
+# NOTE: In this case, enc_inp consists of sequences of word IDs like we just created. 
 embeddings = tf.Variable( tf.random_uniform( [vocab_size, embedding_size], -1., 1.), dtype = tf.float32 )
 enc_inp_emb = tf.nn.embedding_lookup( embeddings, enc_inp )
 
-# Primary cell
+# Primary cell. Creating a forward and backward to avoid name clashes in the graph.
 enc_cell_fw = tf.contrib.rnn.LSTMCell( enc_hidden_units )
 enc_cell_bw = tf.contrib.rnn.LSTMCell( enc_hidden_units )
 
@@ -157,10 +161,10 @@ enc_outputs = tf.concat( (enc_fw_output, enc_bw_output), 2 ) # concatenate along
 enc_finalstate_c = tf.concat( (enc_fw_finalstate.c, enc_bw_finalstate.c), 1 ) # concat along second axis - cell state
 enc_finalstate_h = tf.concat( (enc_fw_finalstate.h, enc_bw_finalstate.h), 1 ) # concat along second axis - hidden state
 
-enc_finalstate = tf.contrib.rnn.LSTMStateTuple( c = enc_finalstate_c, h = enc_finalstate_h )
+enc_finalstate = tf.contrib.rnn.LSTMStateTuple( c = enc_finalstate_c, h = enc_finalstate_h ) # Bind the states together to use.
+
 
 # Decoder - raw_rnn
-
 dec_cell = tf.contrib.rnn.LSTMCell( dec_hidden_units )
 
 enc_max_time, batch_size = tf.unstack( tf.shape( enc_inp ) ) # Assumes zero-padding has already occurred.
@@ -184,6 +188,7 @@ bout = tf.Variable( tf.zeros( [vocab_size] ), dtype = tf.float32, name = "biases
 # We are using tf.raw_rnn rather than the tf.nn.dynamic_rnn because the dynamic rnn does not allow us to feed
 # decoder-produced tokens as input for the next timestep. 
 
+# Create EOS and PAD token lookups to use when the decoder is finished a sequence. 
 eos_time_slice = tf.ones( [batch_size], dtype = tf.int32, name = 'EOS' )
 pad_time_slice = tf.zeros( [batch_size], dtype = tf.int32, name = 'PAD' )
 
@@ -192,6 +197,7 @@ pad_step_embedded = tf.nn.embedding_lookup( embeddings, pad_time_slice ) # All I
 
 
 # The raw_rnn requires its initial state and transition behaviour to be defined.
+# See https://www.tensorflow.org/api_docs/python/tf/nn/raw_rnn
 
 # Initial state:
 def loop_fn_initial():
@@ -217,7 +223,7 @@ def loop_fn_transition( time, prev_output, prev_state, prev_loop_state ):
 		return next_input # The embedding for the word produced this timestep. 
 	elements_finished = (time >= dec_len) # Produces a boolnea tensor of [batch_size] which defines if the sequence has ended
 	finished = tf.reduce_all( elements_finished ) # Boolean scalar, False as long as there is one False
-	# i.e., are we finished? Unless all time > current dec_len (e.g., the corresponding enc_len+5),
+	# i.e., are we finished? Unless all time > current decoder_length (e.g., the corresponding enc_len+5),
 	# we continue. 
 	input_next = tf.cond( finished, lambda: pad_step_embedded, lambda: get_next_input() ) # If finished = True, 
 	# this returns pad_step_embedded (sequence is over), otherwise returns get_next_input() and 
@@ -238,27 +244,34 @@ def loop_fn( time, prev_output, prev_state, prev_loop_state ):
 
 
 dec_outputs_ta, dec_finalstate, _ = tf.nn.raw_rnn( dec_cell, loop_fn )
-
 dec_outputs = dec_outputs_ta.stack()
 
 # tf.unstack will take the provided tensor and divide it along the values of the given axis (base axis = 0).
 # So if something has shape (A,B,C,D) and we just call tf.unstack, output is a tensor of A tensors of shape (B,C,D).
-# This is supposed to take apart a [ time, batch, hidden_units ] shape tensor
+# This is supposed to take apart a [ time, batch, num_hidden_units ] shape tensor.
 dec_max_steps, dec_batch_size, dec_dim = tf.unstack( tf.shape(dec_outputs) )
 
-dec_outputs_flat = tf.reshape( dec_outputs, [-1, dec_hidden_units] ) # Flattens to [ t * b, h ] from [ t, b, h ]. 
+# Flattens to [ num_timesteps*batch_size, num_hidden ] from [ num_timesteps, batch_size, num_hidden ]:
+dec_outputs_flat = tf.reshape( dec_outputs, [-1, dec_hidden_units] ) 
 
+# Multiply [ num_timesteps*batch_size, num_hidden ] with [ num_hidden, vocab_size ], 
+# return [ num_timesteps*batch_size, vocab_size ]:
 dec_logits_flat = tf.add( tf.matmul( dec_outputs_flat, Wout ), bout )
+
+# Reshape our [ num_timesteps*batch_size, vocab_size ] back to [ num_timesteps, batch_size, num_hidden ]:
 dec_logits = tf.reshape( dec_logits_flat, (dec_max_steps, dec_batch_size, vocab_size) )
 
-dec_predict = tf.argmax( dec_logits, 2 ) # argmax over 3rd dimension (vocab_size) - which word is most likely?
+# Argmax over 3rd dimension (vocab_size; which word is most likely?):
+dec_predict = tf.argmax( dec_logits, 2 ) 
 
 # For tf.one_hot, the first argument contains the indices, and the second contains the length of the sparse vectors.
-# So indices of [1,2,3] and a depth of 5 would produce 3 one-hot vectors of length 5, with 1s at position 1, 2, and 3, respectively.
-# tf.one_hot also has on_value and off_value (base = 1 and 0 respectively) that you can set on your own (e.g. 2, -2).
+# So indices of [1,2,3] (size of [,3]) and a depth of 5 would produce 3 one-hot vectors of length 5, with 1s at position 1, 2, and 3, respectively;
+# a size of [ 3, 5 ].
+
+# In this case, tf.one_hot( decoder_targets, ... ) will return [ num_timesteps, batch_size, vocab_size ]:
 stepwise_cross_entropy = tf.nn.softmax_cross_entropy_with_logits( labels = tf.one_hot( dec_tgt, depth = vocab_size,
 	dtype = tf.float32), logits = dec_logits  )
-# ERROR: logits_size=[1000,27994] labels_size=[500,27994]
+# Except it doesn't. ERROR: logits_size=[1000,27994] labels_size=[500,27994]
 
 
 loss = tf.reduce_mean( stepwise_cross_entropy )
