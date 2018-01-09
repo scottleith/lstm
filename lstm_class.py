@@ -44,14 +44,17 @@ class LstmSimpleClass( object ):
 	    dWf_last, dWi_last, dWo_last, dWc_last, dWy_last: The cache for
 	        the prior step's gradients for use in the calculation of the
 		momentum gradient update. 
-		
+	    dbf_last, dbi_last, dbo_last, dbc_last, dby_last: As above, but
+	        for the biases.
 	    h0, c0: The initial hidden and cell states.
 	    f, i, c, o, h_in, h_out, hx, cell_state: The activity caches for
 	        the forget gate, the input gate, the candidate gate, the output
 	        gate, the input hidden states for each timestep, the hidden
 		states output from each timestep, the concatenation of the
 		hidden state and input (x) at each timestep, and the cell
-		state at each timestep. 
+		state at each timestep.
+	    df, di, dc, do, dh_in, dh_out, dhx, dcell_state: Caches to store
+	        the gradients for the above. 
 	'''
 
 	def __init__( self, X = 'none', Y = 'none', output_act_func = 'linear', loss_func = 'rmse', 
