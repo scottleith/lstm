@@ -2,9 +2,20 @@ import numpy as np
 from copy import deepcopy
 
 
-def _predict( parameters, X, Y ):
+def _calculate_cost( parameters, X, Y ):
 
-	''' Runs new data through an LSTM with given params. Returns predictions.'''
+	''' 
+	Runs new data through an LSTM with given params. Returns predictions.
+	Args:
+	    paramters: A dictionary containing the parameters of an LSTM in
+		numpy array format.
+	    X: The inputs of shape [ batch_size, num_steps, num_features ]. 
+	    Y: The outputs of shape [ batch_size, num_steps, num_features ].
+	Returns:
+	    cost: The cost of the run of X through the LSTM (of shape Y). 
+	    output: The output of the LSTM. 
+	    
+	'''
 
 	if len(X.shape) > 2:
 			curr_batch_size, n_timesteps, n_features = X.shape
@@ -21,7 +32,16 @@ def _predict( parameters, X, Y ):
 
 def _initialize_lstm_params( mini_batch_size, h_size, output_timesteps, output_features ):
 
-	''' Initializes and returns LSTM parameters. Weights are initialized with desired approach. '''
+	''' 
+	Initializes and returns LSTM parameters. Weights are initialized with desired approach. 
+	Args:
+	    mini_batch_size: Size of the minibatches.
+	    h_size: Number of hidden units.
+	    output_timesteps: Number of timesteps in the output data.
+	    output_features: Number of features in the output data.
+	Returns:
+	    A dictionary containing all the LSTM weights and biases. 
+	'''
 	
 	parameters = {}
 
@@ -41,7 +61,20 @@ def _initialize_lstm_params( mini_batch_size, h_size, output_timesteps, output_f
 
 def _create_activity_caches( n_timesteps, curr_batch_size, h_size, n_features ):
 
-	''' Initialize the activity and gradient caches for backward pass '''
+	'''
+	Initialize the activity and gradient caches for backward pass.
+	Args:
+	    n_timesteps: Number of timesteps in the data.
+	    curr_batch_size: The number of observations in the current
+	        batch.
+	    h_size: The number of hidden units in the LSTM.
+	    n_features: The number of features in each x_t.
+	Returns:
+	    cache: A dictionary of 'empty' (i.e., zero) matrices
+	        to store the activation values for each timestep.
+	    gradcache: A dictionary of 'empty' matrices to store the
+	        gradient values for each timestep.
+	'''
 
 	cache = {}
 
@@ -86,7 +119,21 @@ def _create_activity_caches( n_timesteps, curr_batch_size, h_size, n_features ):
 
 def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, val_X = None, val_Y = None ):
 
-	''' For easy one-function running of an LSTM. Runs a full batch. '''
+	''' 
+	For easy one-function running of an LSTM. Runs a full batch (one epoch). 
+	Args:
+	    train_set_X: The input data for training.
+	    train_set_Y: The targets for training.
+	    parameters: A dictionary containing all the parameter matrices for an LSTM.
+	    mini_batch_size: The size of the minibatches in the data.
+	    h_size: The number of hidden units in the LSTM.
+	    val_X: Optional - validation input data.
+	    val_Y: Optional - validation target data.
+	Returns:
+	    parameters: A dictionary of the updated parameters.
+	    traincost: The cost for the current epoch.
+	    valcost (optional): The validation cost for the current epoch. 
+	'''
 
 	# Shuffle dataset at the start of every batch run, so the model isn't seeing the same series 
 	# each time. 
@@ -135,7 +182,19 @@ def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, v
 	else: return parameters, traincost
 
 def _run_forward_pass( x_batch, y_batch, n_timesteps, cache, parameters ):
-	''' Runs the forward pass through repeated calls to _run_forward_cell_step'''
+	''' 
+	Runs the forward pass through repeated calls to _run_forward_cell_step.
+	Args:
+	    x_batch: The input data.
+	    y_batch: The target data.
+	    n_timesteps: The number of timesteps in the input data.
+	    cache: A dictionary to store the activations that will be 
+	        produced.
+	    parameters: A dictionary of the LSTM's weights and biases.
+	Returns:
+	    cache: The updated cache.
+	    output: The output of the current forward pass. 
+	'''
 	for t in range(n_timesteps):
 
 		cache = _run_forward_cell_step( x_batch, t, cache, parameters )
@@ -146,7 +205,17 @@ def _run_forward_pass( x_batch, y_batch, n_timesteps, cache, parameters ):
 
 
 def _run_forward_cell_step( x_batch, t, cache, parameters ):
-	''' Moves through a single node / cell step. '''
+	''' 
+	Moves through a single node / cell step.
+	Args:
+	    x_batch: The current input batch.
+	    t: The current time step (an integer).
+	    cache: A dictionary to store the activations that will be 
+	        produced.
+	    parameters: A dictionary of the LSTM's weights and biases.
+	Returns:
+	    cache: The updated cache.
+	'''
 	cache['h_in'][t] = cache['h_out'][t-1] if t > 0 else cache['h0']
 	cache['hx'][t] = np.hstack( (x_batch[:,t], cache['h_in'][t]) )
 
@@ -162,11 +231,25 @@ def _run_forward_cell_step( x_batch, t, cache, parameters ):
 	return cache
 
 def _run_backward_pass( output, y_batch, n_timesteps, cache, gradcache, parameters ):
-
-	''' Runs the backward pass through repeated calls to _run_backward_cell_step'''
+	''' 
+	Runs the backward pass through repeated calls to _run_backward_cell_step.
+	Args: 
+	    output: The output from the forward pass.
+	    y_batch: The target values.
+	    n_timesteps: The number of timesteps in the target values.
+	    cache: A now-filled dictionary of activations from the 
+	        forward pass. 
+	    gradcache: A dictionary of matrices to store the gradients
+	        from each timestep. 
+	    parameters: A dictionary of the LSTM's weights and biases
+	        (to be updated). 
+	'''
 
 	#Compute initial gradient from the cost back to final h_out.
 	curr_batch_size = y_batch.shape[0]
+	
+	#Flatten the target values to subtract
+	#NOTE: This is just dCost/dActivation for RMSE (i.e., a - y)
 	dy = output - np.reshape( y_batch, [ curr_batch_size, -1 ] )
 	dWy = np.dot( cache['h_out'][ n_timesteps-1 ].T, dy )
 	dby = deepcopy( dy )
@@ -182,9 +265,22 @@ def _run_backward_pass( output, y_batch, n_timesteps, cache, gradcache, paramete
 	return parameters, gradcache
 
 def _run_backward_cell_step( t, dh_next, dc_next, cache, gradcache, parameters ):
-
-	'''Computes the gradients for a single cell step and returns the current gradient totals
-	for the hidden and cell states (note they are passed along the constant error carousel)
+	'''
+	Computes the gradients for a single cell step and returns the current gradient totals
+	for the hidden and cell states (note they are passed along the constant error carousel).
+	Args:
+	    t: Current timestep on our way back.
+	    dh_next: Hidden state gradients from the previous timestep processed.
+	    dc_next: Cell state gradients from the previous timestep processed.
+	    cache: The dictionary of cached activations from the forward pass.
+	    gradcache: The dictionary to cache the gradient values from the
+	        current step.
+	    parameters: The dictionary containing the LSTM's weights and biases.
+	Returns:
+	    dh_next: The updated hidden state gradients.
+	    dc_next: The updated cell state gradients.
+	    gradcache: The dictionary to cache the gradient values from the
+	       backward pass (updated with the gradients produced from this step). 
 	'''
 
 	gradcache['dh_out'][t] += dh_next
@@ -225,8 +321,15 @@ def _run_backward_cell_step( t, dh_next, dc_next, cache, gradcache, parameters )
 	return dh_next, dc_next, gradcache
 
 def _apply_gradients( gradcache = None, learning_rate = .001, parameters = None ):
-
-	''' Performs normal gradient descent updates on the parameters. '''
+	'''
+	Performs normal gradient descent updates on the parameters.
+	Args:
+	    gradcache: A dictionary containing the gradients to be applied.
+	    learning_rate: The learning rate.
+	    parameters: A dictionary containing the parameters to be updated.
+	Returns:
+	    parameters: A dictionary containing the updated parameters.
+	'''
 
 	parameters['Wf'] -= ( learning_rate * gradcache['dWf'])
 	parameters['Wi'] -= ( learning_rate * gradcache['dWi'])
