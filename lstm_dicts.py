@@ -3,7 +3,6 @@ from copy import deepcopy
 
 
 def _calculate_cost( parameters, X, Y ):
-
 	''' 
 	Runs new data through an LSTM with given params. Returns predictions.
 	Args:
@@ -13,8 +12,7 @@ def _calculate_cost( parameters, X, Y ):
 	    Y: The outputs of shape [ batch_size, num_steps, num_features ].
 	Returns:
 	    cost: The cost of the run of X through the LSTM (of shape Y). 
-	    output: The output of the LSTM. 
-	    
+	    output: The output of the LSTM.
 	'''
 
 	if len(X.shape) > 2:
@@ -31,7 +29,6 @@ def _calculate_cost( parameters, X, Y ):
 	return cost, output
 
 def _initialize_lstm_params( mini_batch_size, h_size, output_timesteps, output_features ):
-
 	''' 
 	Initializes and returns LSTM parameters. Weights are initialized with desired approach. 
 	Args:
@@ -118,14 +115,13 @@ def _create_activity_caches( n_timesteps, curr_batch_size, h_size, n_features ):
 
 
 def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, val_X = None, val_Y = None ):
-
 	''' 
 	For easy one-function running of an LSTM. Runs a full batch (one epoch). 
 	Args:
 	    train_set_X: The input data for training.
 	    train_set_Y: The targets for training.
 	    parameters: A dictionary containing all the parameter matrices for an LSTM.
-	    mini_batch_size: The size of the minibatches in the data.
+	    mini_batch_size: The desired size of the minibatches for the current epoch.
 	    h_size: The number of hidden units in the LSTM.
 	    val_X: Optional - validation input data.
 	    val_Y: Optional - validation target data.
@@ -181,13 +177,12 @@ def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, v
 
 	else: return parameters, traincost
 
-def _run_forward_pass( x_batch, y_batch, n_timesteps, cache, parameters ):
+def _run_forward_pass( x_batch, y_batch, cache, parameters ):
 	''' 
 	Runs the forward pass through repeated calls to _run_forward_cell_step.
 	Args:
 	    x_batch: The input data.
 	    y_batch: The target data.
-	    n_timesteps: The number of timesteps in the input data.
 	    cache: A dictionary to store the activations that will be 
 	        produced.
 	    parameters: A dictionary of the LSTM's weights and biases.
@@ -195,6 +190,8 @@ def _run_forward_pass( x_batch, y_batch, n_timesteps, cache, parameters ):
 	    cache: The updated cache.
 	    output: The output of the current forward pass. 
 	'''
+	n_timesteps = x_batch.shape[0]
+	
 	for t in range(n_timesteps):
 
 		cache = _run_forward_cell_step( x_batch, t, cache, parameters )
