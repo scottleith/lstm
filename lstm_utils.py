@@ -29,6 +29,8 @@ def _gen_batches( data_x, data_y, batch_size ):
 	    data_x: Input data of shape [ batch_size, num_steps, num_features ].
 	    data_y: The target data of shape [ batch_size, num_steps, num_features ].
 	    batch_size: The desired size of batches. 
+	Returns:
+	    Two lists containing the respective batches from data_x and data_y.
 	'''
 
 	batches_x, batches_y = [], []
