@@ -7,6 +7,51 @@ class LstmSimpleClass( object ):
 	or piece by piece using the component functions. Assumes single 
 	output node.
 	
+	Attributes:
+	    X: The inputs of shape [ samples, num_steps, num_features ].
+	    Y: The target data, a numpy array. 
+	    Xtrain, Xval, Ytrain, Yval: The training and validation input data,
+	        and the training and validation target data. 
+	    num_timesteps: The number of time steps in the input data.
+		
+	    output_act_func: The activation function for the output units.
+	    loss_func: The loss function for the output layer (NOTE: ONLY RMSE).
+	    initializer: The initializer desired: 'glorot', 'he', 'xavier',
+		'random_normal', 'random_uniform'. 
+	    forget_bias: The initial bias for the forget activations.
+	    optimizer: Desired optimizer: 'gradient_descent', 'momentum',
+		'adam'. 
+	    num_epochs: Number of epochs to run for.
+	    mini_batch_size: Desired minibatch size.
+	    hidden_size: Number of hidden units in the cell and
+		hidden states.
+	    learning_rate: Learning rate applied to the gradient updates.
+	    beta1: Beta for the first moment (momentum).
+	    verbose: Print error updates during training (1 = yes, 0 = no). 
+	    seed: Seed for random value generation during initialization. 
+ 	    train_size: Desired percentage of the data to be used in training.
+		For example, .9 = 90% train, 10% test. 
+	    normalize: Normalize the data prior to training.
+	    
+	    Wf, Wi, Wo, Wc, Wy: The weights for the forget gate, the input gate,
+	        the output gate, the candidate gate, and the output layer,
+		respectively.
+	    bf, bi, bo, bc, by: As above, but the biases.
+	    dWf, dWi, dWo, dWc, dWy: The gradients for these weight matrices.
+	    dbf, dbi, dbo, dbc, dby: The gradients for these biases.
+	    train_err, val_err: Lists storing the training and validation
+	        error from each epoch. 
+	    dWf_last, dWi_last, dWo_last, dWc_last, dWy_last: The cache for
+	        the prior step's gradients for use in the calculation of the
+		momentum gradient update. 
+		
+	    h0, c0: The initial hidden and cell states.
+	    f, i, c, o, h_in, h_out, hx, cell_state: The activity caches for
+	        the forget gate, the input gate, the candidate gate, the output
+	        gate, the input hidden states for each timestep, the hidden
+		states output from each timestep, the concatenation of the
+		hidden state and input (x) at each timestep, and the cell
+		state at each timestep. 
 	'''
 
 	def __init__( self, X = 'none', Y = 'none', output_act_func = 'linear', loss_func = 'rmse', 
@@ -14,36 +59,9 @@ class LstmSimpleClass( object ):
 		mini_batch_size = 128, hidden_size = 50, learning_rate = .001, beta1 = .9, 
 		verbose = 1, seed = 1234, train_size = .9, normalize = True ):
 		'''
-		Initialize the parameters and hyperparameters of the LSTM layer.
-		Args:
-			X: The inputs of shape [ samples, num_steps, num_features ].
-			Y: The target data, a numpy array. 
-			output_act_func: The activation function for the output units.
-			loss_func: The loss function for the output layer (NOTE: ONLY RMSE).
-			initializer: The initializer desired: 'glorot', 'he', 'xavier',
-			    'random_normal', 'random_uniform'. 
-			forget_bias: The initial bias for the forget activations.
-			optimizer: Desired optimizer: 'gradient_descent', 'momentum',
-			    'adam'. 
-			num_epochs: Number of epochs to run for.
-			mini_batch_size: Desired minibatch size.
-			hidden_size: Number of hidden units in the cell and
-			    hidden states.
-			learning_rate: Learning rate applied to the gradient updates.
-			beta1: Beta for the first moment (momentum).
-			verbose: Print error updates during training (1 = yes,
-			    0 = no). 
-			seed: Seed for random value generation during initialization. 
-			train_size: Desired percentage of the data to be used in training.
-			    For example, .9 = 90% train, 10% test. 
-			normalize: Normalize the data prior to training?
-		Updates:
-			output: A numpy array containing the outputs, node by node.
-			FIOC and FIOC_f: A cache of the activity within the layer, node by node.
-			dFIOC and dFIOC_f: A cache with the gradients of this layer, node by node.
-		Returns:
-			Nothing.
+		Initialize the parameters and hyperparameters of the LSTM.
 		'''
+		
 		self.verbose = verbose
 		self.seed = seed
 		if self.seed >= 2:
@@ -78,16 +96,24 @@ class LstmSimpleClass( object ):
 
 
 	def predict( self, X ):
-
-		''' Takes in an X array, makes a prediction using the class object parameters. '''
+		'''
+		Takes in an X array, makes a prediction using the class object parameters. 
+		Args:
+		    Self.
+		    X: An input matrix of shape [ batch_size, num_steps, num_features ].
+		Returns:
+		    The output from the final timestep of the forward pass.
+		'''
 
 		self.create_activity_caches( X.shape[0] )
 		output = self.run_forward_pass( X )
 		return output
 
 	def fit( self ):
-
-		''' All-in-one fitting function. '''
+		'''
+		All-in-one fitting function. Once the LSTM instance has
+		been initialized, .fit() can be called to train the model.
+		'''
 
 		if self.normalize == True:
 			self.normalize_data()
@@ -154,7 +180,7 @@ class LstmSimpleClass( object ):
 		self.bo = np.zeros( ( 1, self. h_size ) )
 		self.by = np.zeros( ( 1, self.output_size ) )
 
-		if self.optimizer is 'momentum' or self.optimizer is 'adam':
+		if self.optimizer is 'momentum':
 
 			self.dWf_last = np.zeros_like( self.Wf )
 			self.dWi_last = np.zeros_like( self.Wi )
