@@ -2,15 +2,48 @@ import numpy as np
 from copy import deepcopy
 
 class LstmSimpleClass( object ):
+	''' 
+	Class that can run a basic single-layer LSTM front to back,
+	or piece by piece using the component functions. Assumes single 
+	output node.
+	
+	'''
 
-	''' Class that can run a basic single-layer LSTM front to back, or piece by piece using the component functions. 
-	Assumes single output node.'''
-
-	def __init__( self, X = 'none', Y = 'none', output_act_func = 'linear', loss_func = 'rmse', initializer = 'xavier', 
-					forget_bias = 1, optimizer = 'momentum', num_epochs = 1000, mini_batch_size = 128, hidden_size = 50, 
-					learning_rate = .001, beta1 = .9, beta2 = .999, verbose = 1, seed = 1234, train_size = .9,
-					normalize = True ):
-
+	def __init__( self, X = 'none', Y = 'none', output_act_func = 'linear', loss_func = 'rmse', 
+		initializer = 'xavier', forget_bias = 1, optimizer = 'momentum', num_epochs = 1000, 
+		mini_batch_size = 128, hidden_size = 50, learning_rate = .001, beta1 = .9, 
+		verbose = 1, seed = 1234, train_size = .9, normalize = True ):
+		'''
+		Initialize the parameters and hyperparameters of the LSTM layer.
+		Args:
+			X: The inputs of shape [ samples, num_steps, num_features ].
+			Y: The target data, a numpy array. 
+			output_act_func: The activation function for the output units.
+			loss_func: The loss function for the output layer (NOTE: ONLY RMSE).
+			initializer: The initializer desired: 'glorot', 'he', 'xavier',
+			    'random_normal', 'random_uniform'. 
+			forget_bias: The initial bias for the forget activations.
+			optimizer: Desired optimizer: 'gradient_descent', 'momentum',
+			    'adam'. 
+			num_epochs: Number of epochs to run for.
+			mini_batch_size: Desired minibatch size.
+			hidden_size: Number of hidden units in the cell and
+			    hidden states.
+			learning_rate: Learning rate applied to the gradient updates.
+			beta1: Beta for the first moment (momentum).
+			verbose: Print error updates during training (1 = yes,
+			    0 = no). 
+			seed: Seed for random value generation during initialization. 
+			train_size: Desired percentage of the data to be used in training.
+			    For example, .9 = 90% train, 10% test. 
+			normalize: Normalize the data prior to training?
+		Updates:
+			output: A numpy array containing the outputs, node by node.
+			FIOC and FIOC_f: A cache of the activity within the layer, node by node.
+			dFIOC and dFIOC_f: A cache with the gradients of this layer, node by node.
+		Returns:
+			Nothing.
+		'''
 		self.verbose = verbose
 		self.seed = seed
 		if self.seed >= 2:
@@ -63,9 +96,14 @@ class LstmSimpleClass( object ):
 		self.train_model()
 
 	def normalize_data( self ):
-
-		''' Normalizes the data according to the trainset maxes.
-		Alters the object's X and Y. '''
+		''' 
+		Normalizes the data according to the trainset maxes.
+		Alters the object's X and Y. 
+		Args: 
+		    Self.
+		Updates:
+		    X and Y.
+		'''
 
 		trainsize = round( self.X.shape[0] * self.train_size )
 		Xnorm = np.amax(self.X[:trainsize])
@@ -75,8 +113,16 @@ class LstmSimpleClass( object ):
 		self.Y = self.Y / Ynorm
 
 	def split_data( self ):
-
-		''' Splits data into train and validation sets. '''
+		'''
+		Splits data into train and validation sets.
+		Args:
+		    Self.
+		Creates:
+		    Xtrain: Input training data.
+		    Ytrain: Target training data.
+		    Xval: Input validation data.
+		    Yval: Target validation data. 
+		    '''
 
 		trainsize = round( self.X.shape[0] * self.train_size )
 		self.Xtrain = self.X[:trainsize]
@@ -85,9 +131,16 @@ class LstmSimpleClass( object ):
 		self.Yval = self.Y[trainsize:]
 
 	def initialize_parameters( self ):
-
-		''' Initializes parameters using the "_initialize_weights" utility function. 
-		If the optimizer required a record of past gradients, those are initialized as well.'''
+		'''
+		Initializes parameters using the "_initialize_weights" utility 
+		function. If the optimizer required a record of past gradients, 
+		(i.e., momentum, adam), those are initialized as well.
+		Args: 
+		    Self.
+		Creates:
+		    All weight and bias matrices, and
+		    (if necessary) gradient storage matrices.
+		'''
 
 		self.Wf = _initialize_weights( [self.n_features+self.h_size, self.h_size], initializer = self.initializer )
 		self.Wi = _initialize_weights( [self.n_features+self.h_size, self.h_size], initializer = self.initializer )
@@ -116,8 +169,14 @@ class LstmSimpleClass( object ):
 			self.dby_last = np.zeros_like( self.by )
 
 	def train_model( self ):
-
-		''' Runs model through desired number of epochs and stores records of train/validation error.'''
+		'''
+		Runs model through desired number of epochs and stores/reports
+		records of train/validation error.
+		Args:
+		    Self.
+		Updates:
+		    All weights and biases.
+		'''
 
 		self.train_err = []
 		self.val_err = []
@@ -130,8 +189,17 @@ class LstmSimpleClass( object ):
 				print(" ")
 
 	def run_epoch( self, epoch ):
-
-		''' Shuffles datasets, splits it into batches, and runs the forward/backward passes on those batches.'''
+		'''
+		Shuffles datasets, splits it into batches, and runs the 
+		forward/backward passes on those batches.
+		Args:
+		    Self.
+		    epoch: The current epoch number (for momentum/adam
+		        calculation). 
+		Updates:
+		    train_err: The training error list.
+		    val_err: The validation error list.
+		'''
 
 		shuffx, shuffy = _shuffle( self.Xtrain, self.Ytrain )
 
@@ -148,8 +216,15 @@ class LstmSimpleClass( object ):
 
 
 	def create_activity_caches( self, curr_batch_size ):
-
-		''' Create activity caches for forward pass. '''
+		'''
+		Create activity caches for forward pass.
+		Args:
+		    Self.
+		    curr_batch_size: The size of the current batch. 
+		Creates:
+		    The activity caches (numpy arrays to be filled) for each
+		    LSTM gate and state.
+		'''
 
 		self.h0 = np.zeros( ( curr_batch_size, self.h_size ) )
 		self.c0 = np.zeros( ( curr_batch_size, self.h_size ) )
@@ -165,9 +240,16 @@ class LstmSimpleClass( object ):
 
 
 	def run_forward_pass( self, x ):
-
-		''' Runs forward pass through repeated calls of _run_forward_cell_step. 
-		Returns prediction. '''
+		'''
+		Runs forward pass through repeated calls of _run_forward_cell_step. 
+		Args:
+		    Self.
+		    x: The input batch.
+		Updates:
+		    All activity caches.
+		Returns:
+		    The hidden state output from the final timestep.
+		'''
 
 		self.create_activity_caches( x.shape[0] )
 
@@ -180,8 +262,15 @@ class LstmSimpleClass( object ):
 		return output
 
 	def run_forward_cell_step( self, x, t ):
-
-		''' Runs forward cell step. '''
+		'''
+		Runs a single forward cell step.
+		Args:
+		    Self.
+		    x: The input data for the current pass.
+		    t: The current timestep (to index x).
+		Updates:
+		    All activity caches.
+		'''
 
 		# Quick check to make sure our x_t and h_t are of appropriate shapes.
 		assert x[:,t,:].shape[0] == self.h_in[:,t,:].shape[0], \
@@ -201,11 +290,21 @@ class LstmSimpleClass( object ):
 
 
 	def _run_backward_pass( self, y_batch, output ):
-
-		''' Runs backward pass through repeated calls to _run_backward_cell_step. '''
+		'''
+		Runs backward pass through repeated calls to _run_backward_cell_step.
+		Args:
+		    Self.
+		    y_batch: Target data for the current batch.
+		    output: The output from the final timestep
+		        of the forward pass.
+		Updates:
+		    All weights and biases.
+		'''
 
 		# Starting gradients calculated.
 		self.initialize_gradient_caches()
+		
+		#NOTE: This is dCost/dActivation for RMSE.
 		self.dy = output - np.reshape( y_batch, [ y_batch.shape[0], -1 ] )
 		self.dWy = np.dot( self.h_out[ :, self.n_timesteps-1, : ].T, self.dy )
 		self.dby = np.sum(self.dy, axis = 0)
@@ -220,9 +319,16 @@ class LstmSimpleClass( object ):
 		self._apply_gradients()
 
 	def initialize_gradient_caches( self ):
-
-		''' Creates caches for the gradients as we go along. 
-		We do this so we can eventually sum them at the end. '''
+		'''
+		Creates caches for the gradients as we go along. 
+		We do this so we can eventually sum them at the end.
+		Args:
+		    Self.
+		Creates:
+		    Caches for each gate and state.
+		    Caches for the gradients of each weight and bias
+		    matrix.
+		'''
 
 		self.df = np.zeros_like( self.f )
 		self.di = np.zeros_like( self.i )
@@ -246,9 +352,20 @@ class LstmSimpleClass( object ):
 		self.dby = np.zeros_like( self.by )
 
 	def run_backward_cell_step( self, t, dh_next, dc_next ):
-
-		''' Runs each backward step. Note that dh_next and dc_next are constantly passed
-		along the error carousel. '''
+		'''
+		Runs each backward step. Note that dh_next and dc_next are 
+		constantly passed along the error carousel.
+		Args:
+		    Self.
+		    t: The current timestep.
+		    dh_next: The hidden state gradient passed from
+		        the previously processed timestep.
+		    dc_next: The cell state gradients passed from
+		        the previously processed timestep.
+		Updates:
+		    The gradient caches for all states, weights, 
+		    biases, and gates.
+		'''
 
 		self.dh_out[:,t,:] += dh_next
 
@@ -288,8 +405,13 @@ class LstmSimpleClass( object ):
 		return dh_next, dc_next
 
 	def apply_gradients( self ):
-
-		''' Apply gradient updates according to selected optimizer. '''
+		'''
+		Applies gradient updates according to selected optimizer.
+		Args:
+		    Self.
+		Updates:
+		    All weight and bias matrices.
+		'''
 
 		self.dWf = np.mean( self.dWf, axis = 0 )
 		self.dWi = np.mean( self.dWi, axis = 0 )
