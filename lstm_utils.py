@@ -2,7 +2,14 @@ import numpy as np
 
 def _calculate_cost( loss_func = 'rmse', output, y ):
 
-	''' Returns squared cost. To be updated for various loss functions.'''
+	''' Returns squared cost. //TODO: Add other loss functions.
+	Args: 
+	    loss_func: Loss function type. Currently only has 'rmse'.
+	    output: The output from an LSTM.
+	    y: The target values.
+	Returns:
+	    The cost of the same shape as the targets y.
+	'''
 
 	# If y isn't the right shape, reshapes it to match the output.
 	if y.shape != output.shape:
@@ -14,8 +21,15 @@ def _calculate_cost( loss_func = 'rmse', output, y ):
 
 def _gen_batches( data_x, data_y, batch_size ):
 
-	''' Splits X and Y into batches of batch_size. 
-	Last batch is the remainder. '''
+	''' 
+	Splits X and Y into batches of batch_size. Last batch is the remainder. 
+	Note that this function assumes an even number of batches. 
+	
+	Args:
+	    data_x: Input data of shape [ batch_size, num_steps, num_features ].
+	    data_y: The target data of shape [ batch_size, num_steps, num_features ].
+	    batch_size: The desired size of batches. 
+	'''
 
 	batches_x, batches_y = [], []
 
@@ -25,9 +39,16 @@ def _gen_batches( data_x, data_y, batch_size ):
 
 	return np.array(batches_x), np.array(batches_y)
 
-def _shuffle( X, Y ):
+def _shuffle( X, Y, axis = 0 ):
 
-	''' Shuffles X and Y together, returns shuffled X and Y. '''
+	'''
+	Shuffles X and Y together, returns shuffled X and Y.
+	Args:
+	    X: The input data. 
+	    Y: The target data.
+	Returns:
+	    Shuffled X and Y matrices.
+	'''
 
 	assert( X.shape[0] == Y.shape[0] )
 	s = np.arange(X.shape[0])
@@ -36,8 +57,17 @@ def _shuffle( X, Y ):
 
 def _initialize_weights( shape, initializer = 'glorot'):
 
-	'''Returns matrix of [shape] filled with random values 
-	according to given initialization approach.'''
+	'''
+	Returns matrix of [shape] filled with random values 
+	according to given initialization approach.
+	Args:
+	    shape: The desired shape of the weight matrix to
+	           be generated.	
+	    initializer: The type of initializer desired.
+	Returns:
+	    The weight matrix of desired shape, filled with
+	    values produced by the indicated initializer.
+	'''
 
 	if initializer == 'random_normal':
 		return np.random.randn( shape ) * 0.1
