@@ -492,3 +492,14 @@ class LstmSimpleClass( object ):
 			self.dbo_last = deepcopy( self.dbo )
 			self.dbc_last = deepcopy( self.dbc )
 			self.dby_last = deepcopy( self.dby )
+
+			
+			
+			
+#----Time to test our class!
+
+test_lstm = LstmSimpleClass( Xtrain, Ytrain ) 
+# Note that this will actually split the 'training' data into train/val sets.
+# We're just fiddling so that's OK. 
+
+test_lstm.fit() # And done. So much easier.
