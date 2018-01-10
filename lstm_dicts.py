@@ -134,7 +134,7 @@ def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, v
 	# Shuffle dataset at the start of every batch run, so the model isn't seeing the same series 
 	# each time. 
 	shuffx,shuffy  = _shuffle( train_set_X, train_set_Y )
-	batches_x, batches_y = gen_batches( shuffx, shuffy, mini_batch_size )
+	batches_x, batches_y = _gen_batches( shuffx, shuffy, mini_batch_size )
 
 	for x_batch, y_batch in zip( batches_x, batches_y ):
 
@@ -350,16 +350,19 @@ def _apply_gradients( gradcache = None, learning_rate = .001, parameters = None 
 h_size = 25
 mini_batch_size = 128
 learning_rate = .001
+
 if len( Xtrain.shape) > 2:
 	n_features = Xtrain.shape[2]
 else:
 	n_features = 1
-	n_timesteps = Xtrain.shape[1]
-output_timesteps = Ytrain.shape[1]
+
 if len( Ytrain.shape) > 2:
  	output_features = Ytrain.shape[2]
 else:
 	output_features = 1
+
+n_timesteps = Xtrain.shape[1]
+output_timesteps = Ytrain.shape[1]
 mem_cell_size = n_features+h_size
 parameters = _initialize_lstm_params( n_features, h_size, output_timesteps, output_features )
 train_err, val_err = [], []
