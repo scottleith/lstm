@@ -1,7 +1,10 @@
 import numpy as np
 from copy import deepcopy
 
-## NOTE: Uses _functions from lstm_utils.
+## Runs an example LSTM using data of size [ batch_size, num_steps, num_features ]
+## NOTE: Only tested on data produced by lstm_sample_data_generation.py
+## NOTE: Uses _functions from lstm_utils.py.
+
 
 class LstmSimpleClass( object ):
 	''' 
@@ -318,7 +321,7 @@ class LstmSimpleClass( object ):
 
 
 
-	def _run_backward_pass( self, y_batch, output ):
+	def run_backward_pass( self, y_batch, output ):
 		'''
 		Runs backward pass through repeated calls to _run_backward_cell_step.
 		Args:
