@@ -1,6 +1,8 @@
 import numpy as np
 from copy import deepcopy
 
+## NOTE: Uses _functions from lstm_utils.
+
 class LstmSimpleClass( object ):
 	''' 
 	Class that can run a basic single-layer LSTM front to back,
