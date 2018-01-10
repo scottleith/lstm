@@ -150,7 +150,7 @@ def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, v
 		cache, gradcache = _create_activity_caches( n_timesteps, curr_batch_size, h_size, n_features )
 
 		# Forward pass, backward pass, parameter update.
-		cache, output = _run_forward_pass( x_batch, y_batch, n_timesteps, cache, parameters )
+		cache, output = _run_forward_pass( x_batch, y_batch, cache, parameters )
 		parameters, gradcache = _run_backward_pass( output, y_batch, cache, gradcache, parameters  )
 		parameters = _apply_gradients( gradcache = gradcache, parameters  = parameters)
 
