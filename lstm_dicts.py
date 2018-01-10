@@ -151,7 +151,7 @@ def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, v
 
 		# Forward pass, backward pass, parameter update.
 		cache, output = _run_forward_pass( x_batch, y_batch, cache, parameters )
-		parameters, gradcache = _run_backward_pass( output, y_batch, cache, gradcache, parameters  )
+		parameters, gradcache = _run_backward_pass( output, y_batch, n_timesteps, cache, gradcache, parameters  )
 		parameters = _apply_gradients( gradcache = gradcache, parameters  = parameters)
 
 	# If y was multidimensional (M features at each timepoint), reshape to fit output layer.
