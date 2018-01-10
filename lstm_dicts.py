@@ -1,6 +1,7 @@
 import numpy as np
 from copy import deepcopy
 
+#---- Basic Functions
 
 def _calculate_cost( parameters, X, Y ):
 	''' 
@@ -111,8 +112,6 @@ def _create_activity_caches( n_timesteps, curr_batch_size, h_size, n_features ):
 	gradcache['dby'] = np.zeros_like( parameters['by'] )
 
 	return cache, gradcache
-
-
 
 def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, val_X = None, val_Y = None ):
 	''' 
