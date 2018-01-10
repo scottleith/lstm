@@ -151,7 +151,7 @@ def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, v
 
 		# Forward pass, backward pass, parameter update.
 		cache, output = _run_forward_pass( x_batch, y_batch, n_timesteps, cache, parameters )
-		parameters, gradcache = _run_backward_pass( output, y_batch, n_timesteps, cache, gradcache, parameters  )
+		parameters, gradcache = _run_backward_pass( output, y_batch, cache, gradcache, parameters  )
 		parameters = _apply_gradients( gradcache = gradcache, parameters  = parameters)
 
 	# If y was multidimensional (M features at each timepoint), reshape to fit output layer.
@@ -169,7 +169,7 @@ def _run_batch( train_set_X, train_set_Y, parameters, mini_batch_size, h_size, v
 			val_X = np.reshape(val_X, [ curr_batch_size, n_timesteps, n_features ] )
 
 		cache, _ = _create_activity_caches( n_timesteps, curr_batch_size, h_size, n_features )
-		_, output = _run_forward_pass( val_X, val_Y, n_timesteps, cache, parameters )
+		_, output = _run_forward_pass( val_X, val_Y, cache, parameters )
 		y = np.reshape( val_Y,  [val_Y.shape[0], -1 ] )
 		valcost = np.sqrt( np.mean( np.power(output - y,2), axis = 0 ) )
 
@@ -190,7 +190,7 @@ def _run_forward_pass( x_batch, y_batch, cache, parameters ):
 	    cache: The updated cache.
 	    output: The output of the current forward pass. 
 	'''
-	n_timesteps = x_batch.shape[0]
+	n_timesteps = x_batch.shape[1] # Assumes [ batch_size, num_steps, num_features ]
 	
 	for t in range(n_timesteps):
 
@@ -341,3 +341,35 @@ def _apply_gradients( gradcache = None, learning_rate = .001, parameters = None 
 	parameters['by'] -= ( learning_rate * gradcache['dby'])
 
 	return parameters
+
+
+
+#------------------------Time to test our setup!
+
+
+h_size = 25
+mini_batch_size = 128
+learning_rate = .001
+if len( Xtrain.shape) > 2:
+	n_features = Xtrain.shape[2]
+else:
+	n_features = 1
+	n_timesteps = Xtrain.shape[1]
+output_timesteps = Ytrain.shape[1]
+if len( Ytrain.shape) > 2:
+ 	output_features = Ytrain.shape[2]
+else:
+	output_features = 1
+mem_cell_size = n_features+h_size
+parameters = _initialize_lstm_params( n_features, h_size, output_timesteps, output_features )
+train_err, val_err = [], []
+for i in range(1,20):
+	parameters, traincost, valcost = _run_batch( Xtrain, Ytrain, parameters, mini_batch_size, h_size, Xval, Yval )
+	train_err.append(traincost)
+	val_err.append(valcost)
+	if i % 5 == 0:
+		print( "Running epoch "+str(i) )
+		print( 'Train set cost: %s' % (traincost) )
+		print( 'Validation set cost: %s' % (valcost) )
+		print(" ")
+	
