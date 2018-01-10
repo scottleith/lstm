@@ -85,7 +85,6 @@ class LstmSimpleClass( object ):
 		self.optimizer = optimizer
 		self.learning_rate = learning_rate
 		self.beta1 = beta1
-		self.beta2 = beta2
 
 		# Assumed shape is [ samples, timesteps, features ]. If the input data do not fit that template,
 		# they are reshaped.
@@ -151,7 +150,7 @@ class LstmSimpleClass( object ):
 		    Ytrain: Target training data.
 		    Xval: Input validation data.
 		    Yval: Target validation data. 
-		    '''
+		'''
 
 		trainsize = round( self.X.shape[0] * self.train_size )
 		self.Xtrain = self.X[:trainsize]
@@ -219,8 +218,8 @@ class LstmSimpleClass( object ):
 
 	def run_epoch( self, epoch ):
 		'''
-		Shuffles datasets, splits it into batches, and runs the 
-		forward/backward passes on those batches.
+		Runs a single epoch through the training data. Shuffles datasets, splits it 
+		into batches, and runs the forward/backward passes on those batches.
 		Args:
 		    Self.
 		    epoch: The current epoch number (for momentum/adam
@@ -284,7 +283,7 @@ class LstmSimpleClass( object ):
 
 		for t in range(self.n_timesteps):
 
-			self._run_forward_cell_step( x, t )
+			self.run_forward_cell_step( x, t )
 
 		output = np.dot( self.h_out[ :, self.n_timesteps-1, : ], self.Wy ) + self.by
 
@@ -345,7 +344,7 @@ class LstmSimpleClass( object ):
 
 			dh_next, dc_next = self.run_backward_cell_step( t, dh_next, dc_next )
 
-		self._apply_gradients()
+		self.apply_gradients()
 
 	def initialize_gradient_caches( self ):
 		'''
