@@ -21,8 +21,7 @@ class LstmSimpleClass( object ):
 	    initializer: The initializer desired: 'glorot', 'he', 'xavier',
 		'random_normal', 'random_uniform'. 
 	    forget_bias: The initial bias for the forget activations.
-	    optimizer: Desired optimizer: 'gradient_descent', 'momentum',
-		'adam'. 
+	    optimizer: Desired optimizer: 'gradient_descent', 'momentum'. 
 	    num_epochs: Number of epochs to run for.
 	    mini_batch_size: Desired minibatch size.
 	    hidden_size: Number of hidden units in the cell and
@@ -503,3 +502,6 @@ test_lstm = LstmSimpleClass( Xtrain, Ytrain )
 # We're just fiddling so that's OK. 
 
 test_lstm.fit() # And done. So much easier.
+
+plt.plot( test_lstm.val_err ) # Plot our validation error history to view our LSTM's progress.
+plt.show() # Check it out. 
