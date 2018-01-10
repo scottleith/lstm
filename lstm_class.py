@@ -60,7 +60,7 @@ class LstmSimpleClass( object ):
 	'''
 
 	def __init__( self, X = 'none', Y = 'none', output_act_func = 'linear', loss_func = 'rmse', 
-		initializer = 'xavier', forget_bias = 1, optimizer = 'momentum', num_epochs = 1000, 
+		initializer = 'xavier', forget_bias = 1, optimizer = 'momentum', num_epochs = 20, 
 		mini_batch_size = 128, hidden_size = 50, learning_rate = .001, beta1 = .9, 
 		verbose = 1, seed = 1234, train_size = .9, normalize = True ):
 		'''
