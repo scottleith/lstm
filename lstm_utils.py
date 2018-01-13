@@ -19,26 +19,29 @@ def _calculate_cost( loss_func = 'rmse', output, y ):
 
 	return cost
 
-def _gen_batches( data_x, data_y, batch_size ):
-
+def _gen_batches( data_x, data_y, batch_size, samples_axis = 0 ):
 	''' 
 	Splits X and Y into batches of batch_size. Last batch is the remainder. 
 	Note that this function assumes an even number of batches. 
-	
 	Args:
-	    data_x: Input data of shape [ batch_size, num_steps, num_features ].
-	    data_y: The target data of shape [ batch_size, num_steps, num_features ].
-	    batch_size: The desired size of batches. 
+	    data_x: Input data.
+	    data_y: The target data.
+	    batch_size: The desired number of samples in each batch.
+	    samples_axis: The axis of the samples index. If the data is batch-major (0),
+	    	or time-major (1). 
 	Returns:
 	    Two lists containing the respective batches from data_x and data_y.
 	'''
-
 	batches_x, batches_y = [], []
-
-	for i in range( 0, data_x.shape[0], batch_size ):
-		batches_x.append( data_x[ i: i+batch_size ] )
-		batches_y.append( data_y[ i : i+batch_size ] )
-
+	# No need to be fancy here, since we want batch-major or time-major only.
+	if samples_axis == 0:
+		for i in range( 0, data_x.shape[0], batch_size ):
+			batches_x.append( data_x[ i: i+batch_size ] )
+			batches_y.append( data_y[ i : i+batch_size ] )
+	elif samples_axis == 1:
+		for i in range( 0, data_x.shape[1], batch_size ):
+			batches_x.append( data_x[ :, i:i+batch_size, : ] )
+			batches_y.append( data_y[ :, i:i+batch_size, : ] )
 	return np.array(batches_x), np.array(batches_y)
 
 def _shuffle( X, Y, axis = 0 ):
