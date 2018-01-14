@@ -1,5 +1,10 @@
 import numpy as np
 
+# NOTES: 
+#  - This uses functions from lstm_utils.py.
+#  - All-gates-in-one-matrix code partially inspired by Andrej Karpathy's 
+#    implementation @ https://gist.github.com/karpathy/587454dc0146a6ae21fc.
+
 class LstmLayer( object ):
 	"""
 	A single LSTM layer that can run forward and backward passes.
@@ -7,11 +12,16 @@ class LstmLayer( object ):
 	NB: When dealing with the caches, a prefix of "d" means it stores 
 	gradients, and a suffix of "_f" indicates it stores activated values 
 	(e.g., a gate's values after being passed through the sigmoid function).
+	
+	Attributes:
+	
+
+
 	"""
 
 	def __init__( self, X, Y, initializer = 'glorot', learning_rate = .001,
-		optim = 'momentum', forget_bias = 1, hidden_size = 50, 
-		fully_connected_output = True, return_params = False ):
+		optim = 'momentum', forget_bias = 0, hidden_size = 50, 
+		fully_connected_output = True, return_params = False, clip_gradient = True ):
 		"""
 		Initialize the parameters and hyperparameters of the LSTM layer.
 		Args:
@@ -21,8 +31,8 @@ class LstmLayer( object ):
 			initializer: The initializer ('glorot','he','xavier','random_normal',
 				'random_uniform') for this layer's weights.
 			optim: The optimizer to use with this layer.
-			forget_bias: If you want to tweak the forget gate bias in step with
-				CITE, to discourage forgetting early in training.
+			forget_bias: If you want to tweak the forget gate bias to discourage 
+				forgetting early in training.
 			hidden_size: The number of neurons/nodes in the hidden state.
 			fully_connected_output: Set to 'True' if you want the output layer
 				to be fully connected (usually used for final/top layer).
@@ -36,27 +46,32 @@ class LstmLayer( object ):
 			params: The parameters for the layer. 
 		"""
 
-		assert len( X.shape ) == 3 and max(X.shape) == X.shape[1], "Required shape\
-		of X is [ timesteps, batch_size, features ]. This is so we can easily\
-		reference a given cell step with the indexer [t] rather than [:,t,:]."
+		assert max(X.shape) == X.shape[0], "Required shape\
+		of X is [ batch_size, timesteps, features ]." //TODO: Allow time major.
 
-		self.n_timesteps = X.shape[0]
+		self.n_timesteps = X.shape[1]
 		self.input_size = X.shape[2]
 		if Y is None:
 			self.output_size = hidden_size
-		else:
-			self.output_size = Y.shape[0]*Y.shape[2]
+		elif len(Y.shape) == 3:
+			self.output_size = Y.shape[1]*Y.shape[2]
+		elif len(Y.shape) == 2:
+			self.output_size = Y.shape[1]
 		self.initializer = initializer
 		self.h_size = hidden_size
-		self.forget_bias = forget_bias
 		self.optim = optim
+		self.learning_rate = learning_rate
+		self.clip_gradient = clip_gradient
+		self.beta1 = beta1
+		self.beta2 = beta2
 		
 		# Order of the gates is Forget, Input, Output, Candidate (FIOC). 
 		# The +1 is for the biases.
 		self.params = _initialize_weights( [(self.input_size+self.h_size+1), 
 							(self.h_size*4)], initializer = self.initializer )
 		self.params[0,:] = 1
-
+		if forget_bias > 0: self.params[0,:self.h_size] = forget_bias
+			
 		if fully_connected_output is True:
 			self.Wy = _initialize_weights( [ self.h_size+1, self.output_size ], 
 				initializer = self.initializer )
@@ -80,17 +95,17 @@ class LstmLayer( object ):
 			- Output of the forward pass.
 		"""
 
-		self.batch_size = X.shape[1]
+		self.batch_size = X.shape[0]
 		self.initialize_fwd_caches()
 
 		self.output = np.zeros( [self.n_timesteps, self.batch_size, 
 			self.output_size] )
 
 		for t in range(self.n_timesteps):
-			self.forward_cell_step( X[t], t )
-			self.output[t] = np.dot( self.hiddenstate[t], self.Wy ) + self.by
+			self.forward_cell_step( X[:,t,:], t )
+			self.output[:,t,:] = np.dot( self.hiddenstate[t], self.Wy ) + self.by
 
-		return self.output
+		return self.output[:,self.n_timesteps-1,:]
 
 	def initialize_fwd_caches( self ):
 		""" 
@@ -143,7 +158,7 @@ class LstmLayer( object ):
 		"""
 
 		# Quick check that x_t and h_t are of compatible shapes.
-		assert x.shape[1] == self.hiddenstate[t].shape[0], \
+		assert x.shape[0] == self.hiddenstate[t].shape[0], \
 		"x does not match dimensions with h, x shape is {0} and h shape \
 		is {1}".format( str(x.shape), str(self.hiddenstate[t].shape) )
 
@@ -151,17 +166,13 @@ class LstmLayer( object ):
 		self.hx[t,:,1:self.input_size+1] = x
 		self.hx[t,:,self.input_size+1:] = self.hiddenstate[t-1] \
 			if t > 0 else self.h0
-
+		prev_cellstate = self.cellstate[t-1] if t > 0 else self.c0
+		
 		self.FIOC[t] = self.hx[t].dot( self.params ) # Compute gate activations.
-
-		self.FIOC_f[t,:,:3*self.h_size] = sigmoid( self.FIOC[t,:,:3*self.h_size] )
-		self.FIOC_f[t,:,self.f] += self.forget_bias 
+		self.FIOC_f[t,:,:3*self.h_size] = sigmoid( self.FIOC[t,:,:3*self.h_size] ) 
 		self.FIOC_f[t,:,self.c] = np.tanh( self.FIOC[t,:,self.c] )
-
-		prev_cellstate = self.cellstate[t-1] \
-			if t > 0 else self.c0
 		self.cellstate[t] = prev_cellstate * self.FIOC_f[t,:,self.f] + \
-			self.FIOC_f[t,:,self.i] * self.FIOC_f[t,:,self.o]
+			( self.FIOC_f[t,:,self.i] * self.FIOC_f[t,:,self.c] )
 		self.cellstate_f[t] = np.tanh( self.cellstate[t] )
 		self.hiddenstate[t] = self.cellstate_f[t] * self.FIOC[t,:,self.o]
 
@@ -194,22 +205,19 @@ class LstmLayer( object ):
 		batch_size, n_features ]. For example, if Y is for classification, \
 		rather than forecasting, the shape would be [ 1, batch_size, n_classes ]."
 
-		y = Y[0]
-		# Because we want a flattened Y (i.e., we want to turn [n_timesteps, batch_size,
-		# n_features ] into [batch_size, n_timesteps*n_features]), we have to...
-		for i in range(1,self.n_timesteps):
-			y = np.concatenate( (y, Y[i]), axis = 1) # God forgive me.
-		y = np.reshape( y, [1, y.shape[0], y.shape[1]] )
-
+		y = Y.reshape([self.batch_size,-1]) # [ batch_size, timesteps*n_features ]
+		
 		if cost_metric is 'rmse':
-			cost = np.sqrt( np.mean( np.power( self.output[self.n_timesteps-1] - y, 2 ), axis = 0 ) )
-			grad = self.output[self.n_timesteps-1] - y
-
-			# Pad targets with 0s so our gradient matrix works for every layer. 
-			pad = np.zeros( ( self.n_timesteps-1, self.batch_size, self.output_size) ) 
-			grad = np.concatenate( (pad, grad) )
-
-		return cost, grad
+			cost = np.sqrt( np.mean( np.power( self.output[:,self.n_timesteps-1,:] - y, 2 ), axis = 0 ) )
+			self.grad = self.output[:,self.n_timesteps-1,:] - y
+		
+		# Pad targets with 0s so our gradient matrix works for every layer. 
+		pad = np.zeros( ( self.batch_size, self.n_timesteps-1, self.output_size ) )
+		#Make sure our cost has the right shape:
+		self.grad = np.expand_dims( self.grad, 1 )
+		self.grad = np.concatenate( (pad, self.grad), axis = 1 )
+			
+		return cost, self.grad
 
 
 	def backward_pass( self, dh_above, iteration ):
@@ -237,16 +245,18 @@ class LstmLayer( object ):
 		# The hidden state gradients are initialized with the gradients
 		# from the layer above. We will add in this layer's gradients
 		# as we go. 
-		self.d_hiddenstate = deepcopy( dh_above )
 		self.initialize_grad_caches()
+		self.dh[self.n_timesteps-1] = dh_above[:,self.n_timesteps-1,:] @ self.Wy.T
+		self.dWy = np.dot( self.hiddenstate[self.n_timesteps-1].T, dh_above[:,self.n_timesteps-1,:] )
+		self.dby = np.sum( dh_above[:,self.n_timesteps-1,:] )
 		dh_next = 0 #There are no gradients after the final cell step.
 		dc_next = 0
-
+		
 		for t in reversed( range(self.n_timesteps) ):
 			dh_next, dc_next = self.backward_cell_step( dh_next, dc_next, t )
-			
+		
 		self.update_parameters( iteration = iteration )
-
+		
 		return self.params, self.dparams, self.dx
 
 	def initialize_grad_caches( self ):
@@ -258,9 +268,11 @@ class LstmLayer( object ):
 		if self.optim is 'momentum' or 'adam':
 			# Stores exponentially weighted avg of the gradient.
 			self.v = np.zeros_like( self.params ) 
+			self.vWy = np.zeros_like( self.Wy )
 		if self.optim is 'adam':
 			# Stores exponentially weighted avg of the squared gradient.
-			self.s = np.zeros_like( self.params ) 
+			self.s = np.zeros_like( self.params )
+			self.sWy = np.zeros_like( self.Wy )
 
 		self.dFIOC = np.zeros_like( self.FIOC )
 		self.dFIOC_f = np.zeros_like( self.FIOC )
@@ -286,35 +298,34 @@ class LstmLayer( object ):
 			- dh_next and dc_next for passage to next backward step.
 		"""
 
-		self.dhiddenstate[t] += dh_next
-		self.dcellstate += (1 - self.cellstate_f[t]**2) * ( self.dhiddenstate[t] *\
-			self.FIOC_f[t,:,self.o] )
-
-		self.dFIOC_f[t,:,self.o] = self.cellstate_f[t] * self.dhiddenstate[t]
+		self.dh[t] += dh_next
+		self.dcellstate[t] = ( (1 - self.cellstate_f[t]**2) * ( self.dh[t] *\
+			self.FIOC_f[t,:,self.o] ) ) + dc_next
 		if t > 0:
 			self.dFIOC_f[t,:,self.f] = self.cellstate[t-1] * self.dcellstate[t]
-			self.dcellstate[t-1] += self.FIOC_f[t,:,self.f] * self.dcellstate[t]
 		else:
 			self.dFIOC_f[t,:,self.f] = self.c0 * self.dcellstate[t]
 			self.dc0 = self.FIOC_f[t,:,self.f] * self.dcellstate[t]
+		
 		self.dFIOC_f[t,:,self.i] = self.FIOC_f[t,:,self.c] * \
 			self.dcellstate[t]
 		self.dFIOC_f[t,:,self.c] = self.FIOC_f[t,:,self.i] * \
 			self.dcellstate[t]
-
+		self.dFIOC_f[t,:,self.o] = self.cellstate_f[t] * self.dh[t]
+		
 		self.dFIOC[t,:,self.c] = (1 - self.FIOC_f[t,:,self.c]**2) * self.FIOC_f[t,:,self.c]
 		y = self.FIOC_f[t,:,:3*self.h_size]
+		
 		# Using 3*h_size below to compactly get Forget, Input, Output all in one.
 		self.dFIOC[t,:,:3*self.h_size] = ( y * (1.-y) ) * self.dFIOC_f[t,:,:3*self.h_size]
-			
-		self.dparams +=  np.dot( self.hx[t].T, self.dFIOC[t] )
+		self.dparams +=  np.dot( self.hx[t].T, self.dFIOC[t] ) # Note summed gradients, not avg.
 		self.dhx[t] = self.dFIOC[t].dot( self.params.T )
 		self.dx[t] = self.dhx[t,:,1:self.input_size+1]
 		
 		dh_next = self.dhx[t,:,self.input_size+1:]
-		if t == 0: self.dh0 = deepcopy( dh_next )
-		dc_next = self.dcellstate[t]
-
+		dc_next = self.FIOC_f[t,:,self.f] * self.dcellstate[t]
+		if t == 0: self.dh0, self.c0 = deepcopy( dh_next ), deepcopy( dc_next )
+			
 		return dh_next, dc_next	
 
 	def update_parameters( self, epsilon = 1e-7, iteration = None ):
@@ -323,7 +334,7 @@ class LstmLayer( object ):
 		Args:
 			- Self.
 			- Optimizer. Optimization algorithm to use - 'gradient descent',
-					'momentum', 'adam'.
+				'momentum', 'adam'.
 		Returns: 
 			- A matrix containing this layer's updated parameters.
 		Updates:
@@ -334,21 +345,54 @@ class LstmLayer( object ):
 				of the gradients, s.
 		"""
 
+		if self.clip_gradient == True:
+			g = self.dparams / 128
+			s = np.linalg.norm( g )
+			if s > 5:
+				g = (5*g) / s
+			self.dparams = g
 		if self.optim is 'gradient_descent':
 			self.params -= (self.learning_rate*self.dparams)
+			self.Wy -= (self.learning_rate*self.dWy)
+			self.by -= (self.learning_rate* np.sum(self.dby))
 		elif self.optim is 'momentum':
 			self.v = self.beta1*self.v + (1.-self.beta1)*self.dparams
 			self.params -= (self.learning_rate*self.v)
+			self.vWy = self.beta1*self.vWy + (1.-self.beta1)*self.dWy
+			self.dWy -= (self.learning_rate*self.vWy)
+			self.vby = self.beta1*self.by + (1.-self.beta1)*self.dby
+			self.dby -= (self.learning_rate*self.vby)
 		elif self.optim is 'adam':
 			self.v = self.beta1*self.v + (1.-self.beta1)*self.dparams
 			self.s = self.beta2*self.s + (1.-self.beta2)*(self.dparams**2)
-			vcorr = self.v / ( 1. - np.pow(self.beta1, iteration) )
-			scorr = self.s / (1. - np.pow(self.beta2, iteration))
+			vcorr = self.v / ( 1. - np.power(self.beta1, iteration) )
+			scorr = self.s / (1. - np.power(self.beta2, iteration))
 			update = vcorr / ( np.sqrt(scorr) + epsilon )
 			self.params -= (self.learning_rate*update)
-
+				
 		return self.params
 
+# Before we move on to multiple layers, lett's test a single layer 
+# to see if it learns anything. 
+
+test_lstm = LstmLayer( Xtrain, Ytrain, optim = 'gradient_descent', learning_rate = .0001,
+clip_gradient = True )
+traincost = []
+for i in range(50):
+	tempcost = []
+	shuffx, shuffy = _shuffle(Xtrain, Ytrain)
+	batches_x, batches_y = _gen_batches( shuffx, shuffy, 100, 0 )
+	for batch in range( len(batches_x) ):
+		output = test_lstm.forward_pass( batches_x[ batch ] )
+		cost, grad = test_lstm.calculate_cost( batches_y[ batch ] )
+		_, _, _ = test_lstm.backward_pass( grad, iteration = i )
+		tempcost.append( cost )
+	traincost.append( np.mean( tempcost, axis = 0 ) )
+	print( "Finished Epoch: "+str(i) )
+	print("")
+	print("Training Error: %s" % (np.mean(tempcost, axis = 0)))
+
+	
 class LSTMnetwork( object ):
 	"""
 	Builds and fits a Long Short-Term Memory network. Mostly intended for
