@@ -1,10 +1,12 @@
 import numpy as np
 from copy import deepcopy
 
-## Runs an example LSTM using data of size [ batch_size, num_steps, num_features ]
-## NOTE: Only tested on data produced by lstm_sample_data_generation.py
-## NOTE: Uses _functions from lstm_utils.py.
-
+## Runs an example LSTM using data of shape [ batch_size, num_steps, num_features ].
+# - Uses 'blunt' methods similar to lstm_dicts.py to be as straightforward as possible,
+#   but is far easier to use once initialized. 
+# - Uses data produced by lstm_sample_data_generation.py. Is fairly inflexible
+#   in that it only generates predictions following the final timestep. 
+# - Uses functions from lstm_utils.py.
 
 class LstmSimpleClass( object ):
 	''' 
@@ -62,7 +64,7 @@ class LstmSimpleClass( object ):
 	'''
 
 	def __init__( self, X = 'none', Y = 'none', output_act_func = 'linear', loss_func = 'rmse', 
-		initializer = 'xavier', forget_bias = 1, optimizer = 'momentum', num_epochs = 20, 
+		initializer = 'xavier', forget_bias = 1, optimizer = 'gradient_descent', num_epochs = 20, 
 		mini_batch_size = 128, hidden_size = 50, learning_rate = .001, beta1 = .9, 
 		verbose = 1, seed = 1234, train_size = .9, normalize = True ):
 		'''
@@ -438,22 +440,12 @@ class LstmSimpleClass( object ):
 
 	def apply_gradients( self ):
 		'''
-		Applies gradient updates according to selected optimizer.
+		Applies batch mean gradient updates according to selected optimizer.
 		Args:
 		    Self.
 		Updates:
 		    All weight and bias matrices.
 		'''
-
-		self.dWf = np.mean( self.dWf, axis = 0 )
-		self.dWi = np.mean( self.dWi, axis = 0 )
-		self.dWc = np.mean( self.dWc, axis = 0 )
-		self.dWo = np.mean( self.dWo, axis = 0 )
-
-		self.dbf = np.mean( self.dbf, axis = 0 )
-		self.dbi = np.mean( self.dbi, axis = 0 )
-		self.dbc = np.mean( self.dbc, axis = 0 )
-		self.dbo = np.mean( self.dbo, axis = 0 )
 
 		if self.optimizer == 'gradient descent':
 
@@ -500,11 +492,15 @@ class LstmSimpleClass( object ):
 			
 #----Time to test our class!
 
-test_lstm = LstmSimpleClass( Xtrain, Ytrain ) 
+test_lstm = LstmSimpleClass( Xtrain, Ytrain, optimizer = 'momentum') 
 # Note that this will actually split the 'training' data into train/val sets.
-# We're just fiddling so that's OK. 
+# We're just fiddling to learn, so that's OK. 
 
-test_lstm.fit() # And done. So much easier.
+test_lstm.fit() # And done! So much easier.
 
-plt.plot( test_lstm.val_err ) # Plot our validation error history to view our LSTM's progress.
-plt.show() # Check it out. 
+# Let's see if our model learned anything:
+plt.plot( test_lstm.train_err ) 
+plt.show() # Looks great!
+
+plt.plot( test_lstm.val_err )
+plt.show() # Also great! 
