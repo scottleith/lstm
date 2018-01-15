@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 
 # A basic LSTM implementation using dictionaries and very blunt dictionary methods.
+# Uses data from lstm_generate_sample_data.py and functions from lstm_utils.py. 
 
 
 #---- Basic Functions
