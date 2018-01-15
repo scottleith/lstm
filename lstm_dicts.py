@@ -1,5 +1,10 @@
 import numpy as np
 from copy import deepcopy
+import matplotlib.pyplot as plt
+
+
+# A basic LSTM implementation using dictionaries and very blunt dictionary methods.
+
 
 #---- Basic Functions
 
@@ -375,3 +380,9 @@ for i in range(1,20):
 		print( 'Validation set cost: %s' % (valcost) )
 		print(" ")
 	
+# Now let's see if it was able to learn anything.
+plt.plot( train_err )
+plt.show()
+plt.plot( val_err )
+plt.show()
+# Great!
