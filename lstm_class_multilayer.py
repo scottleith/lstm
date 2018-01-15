@@ -14,9 +14,48 @@ class LstmLayer( object ):
 	(e.g., a gate's values after being passed through the sigmoid function).
 	
 	Attributes:
-	
-
-
+		n_timesteps: Number of timesteps in the data (assumed to be constant).
+		input_size: Number of features in the input data.
+		output_size: Size of the output at each timestep.
+		initializer: The initialization method for the weights ('he', 'xavier',
+			'glorot', 'random_normal', 'random_uniform').
+		optim: Optimizer ('gradient_descent', 'momentum', 'adam').
+		h_size: Number of hidden units in the layer.
+		learning_rate: The learning rate.
+		beta1: Exponential decay hyperparameter for the first moment gradient
+			estimates. Used in 'momentum' and 'adam'.
+		beta2: Exponential decay hyperparameter for the second moment gradient
+			estimates. Used in 'adam'. 
+		clip_gradient: Whether or not to use gradient clipping. If True, gradients
+			are clipped before the the optimizer is applied. 
+		params, dparams: The matrices storing all weights and biases and their gradients,
+			respectively.
+		Wy, by, dWy, dby: The matrices storing the projection (output) layer weights and
+			biases and their gradients, respectively.
+		FIOC, FIOC_f, dFIOC, dFIOC_f: The matrices storing the gate values and their 
+			activations, and their respective gradients (i.e., the gradients 
+			before they have been 'passed through' the derivative of the 
+			activation functions). 
+		f, i, o, c: Indexing variables to more clearly and concisely call the 
+			individual gate elements of the FIOC set of matrices.
+		cellstate, cellstate_f, dcellstate: The LSTM layer's cell state, its
+			activation, and its gradient.
+		hiddenstate, dh: The LSTM layer's hidden state and its gradient.
+		hx, dx: The LSTM layer's input and its gradient (NOTE: dx is just the
+			gradient of the input, which can be passed down to lower
+			layers). 
+		h0, c0, dh0, dc0: The initial values of the hidden state and cell state and
+			their gradients, respectively. 
+		output: The output of the LSTM layer, of shape [ batch_size, n_timesteps,
+			output_size ]. Can be passed up to higher layers.
+		grad: The gradients being passed down into this layer. If this is the top
+			layer or only layer, it is dCost / dActivation for the output. If
+			This is a lower layer, it is the set of dx values passed down from
+			above.
+		v, vWy, vby: The matrices storing the velocities for the weights and biases.
+			Used in 'momentum' and 'adam'. The moving average of the gradients.
+		s, sWy, sby: The matrices storing the moving average of the squared gradients.
+			Used in 'adam'. 
 	"""
 
 	def __init__( self, X, Y, initializer = 'glorot', learning_rate = .001,
@@ -105,7 +144,7 @@ class LstmLayer( object ):
 			self.forward_cell_step( X[:,t,:], t )
 			self.output[:,t,:] = np.dot( self.hiddenstate[t], self.Wy ) + self.by
 
-		return self.output[:,self.n_timesteps-1,:]
+		return self.output
 
 	def initialize_fwd_caches( self ):
 		""" 
@@ -281,8 +320,6 @@ class LstmLayer( object ):
 		self.dx = np.zeros( (self.n_timesteps, self.batch_size, self.input_size) )
 		self.dhiddenstate = np.zeros_like( self.hiddenstate )
 		self.dcellstate = np.zeros_like( self.cellstate )
-		self.dinputx = np.zeros( (self.n_timesteps, self.batch_size, 
-			self.input_size) )
 
 	def backward_cell_step( self, dh_next, dc_next, t ):
 		"""
@@ -392,7 +429,9 @@ for i in range(50):
 	print("")
 	print("Training Error: %s" % (np.mean(tempcost, axis = 0)))
 
-	
+plt.plot( traincost )
+plt.show() # Looks good! Now let's try to string some together and maybe give them something more difficult.
+
 class LSTMnetwork( object ):
 	"""
 	Builds and fits a Long Short-Term Memory network. Mostly intended for
