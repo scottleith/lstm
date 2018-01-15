@@ -9,4 +9,4 @@ Vanilla LSTM implementations.
 
 <b>lstm_class.py</b> Is like lstm_dicts, but implemented as a Python class.
 
-<b>lstm_multilayer.py</b> Is a pair of classes, one for individual LSTM layers, and one to implement layers together. Unlike the prior implementations, this class holds all gate weights and biases (forget, input, output, candidate) in a single matrix. 
+<b>lstm_multilayer.py</b> Unlike the prior implementations, this class holds all gate weights and biases (forget, input, output, candidate) in a single matrix and runs quite a bit faster.
