@@ -308,11 +308,12 @@ class LstmLayer( object ):
 			# Stores exponentially weighted avg of the gradient.
 			self.v = np.zeros_like( self.params ) 
 			self.vWy = np.zeros_like( self.Wy )
+			self.vby = np.zeros_like( self.by )
 		if self.optim is 'adam':
 			# Stores exponentially weighted avg of the squared gradient.
 			self.s = np.zeros_like( self.params )
 			self.sWy = np.zeros_like( self.Wy )
-
+			self.sby = np.zeros_like( self.by )
 		self.dFIOC = np.zeros_like( self.FIOC )
 		self.dFIOC_f = np.zeros_like( self.FIOC )
 		self.dparams = np.zeros_like( self.params )
@@ -388,31 +389,52 @@ class LstmLayer( object ):
 			if s > 5:
 				g = (5*g) / s
 			self.dparams = g
+			
 		if self.optim is 'gradient_descent':
 			self.params -= (self.learning_rate*self.dparams)
 			self.Wy -= (self.learning_rate*self.dWy)
 			self.by -= (self.learning_rate* np.sum(self.dby))
+			
 		elif self.optim is 'momentum':
 			self.v = self.beta1*self.v + (1.-self.beta1)*self.dparams
 			self.params -= (self.learning_rate*self.v)
 			self.vWy = self.beta1*self.vWy + (1.-self.beta1)*self.dWy
-			self.dWy -= (self.learning_rate*self.vWy)
-			self.vby = self.beta1*self.by + (1.-self.beta1)*self.dby
-			self.dby -= (self.learning_rate*self.vby)
+			self.Wy -= (self.learning_rate*self.vWy)
+			self.vby = self.beta1*self.vby + (1.-self.beta1)*self.dby
+			self.by -= (self.learning_rate*self.vby)
+			
 		elif self.optim is 'adam':
+			# TODO: Add function to make this more concise.
+			# TODO: Fix this so it doesn't produce nans anymore. The
+			# implementation is in step with the paper and the tensorflow
+			# implementation, and yet...nans. There is a problem somewhere
+			# along the line that need investigation. 
 			self.v = self.beta1*self.v + (1.-self.beta1)*self.dparams
 			self.s = self.beta2*self.s + (1.-self.beta2)*(self.dparams**2)
 			vcorr = self.v / ( 1. - np.power(self.beta1, iteration) )
 			scorr = self.s / (1. - np.power(self.beta2, iteration))
 			update = vcorr / ( np.sqrt(scorr) + epsilon )
 			self.params -= (self.learning_rate*update)
-				
+			self.vWy = self.beta1*self.vWy + (1.-self.beta1)*self.dWy
+			self.sWy = self.beta2*self.sWy + (1.-self.beta2)*(self.dWy**2)
+			vcorr = self.vWy / ( 1. - np.power(self.beta1, iteration) )
+			scorr = self.sWy / (1. - np.power(self.beta2, iteration))
+			update = vcorr / ( np.sqrt(scorr) + epsilon )
+			self.Wy -= (self.learning_rate*update)
+			self.vby = self.beta1*self.vby + (1.-self.beta1)*self.dby
+			self.sby = self.beta2*self.sby + (1.-self.beta2)*(self.dby**2)
+			vcorr = self.vby / ( 1. - np.power(self.beta1, iteration) )
+			scorr = self.sby / (1. - np.power(self.beta2, iteration))
+			update = vcorr / ( np.sqrt(scorr) + epsilon )
+			self.by -= (self.learning_rate*update)
+			
 		return self.params
+
 
 # Before we move on to multiple layers, lett's test a single layer 
 # to see if it learns anything. 
 
-test_lstm = LstmLayer( Xtrain, Ytrain, optim = 'gradient_descent', learning_rate = .0001,
+test_lstm = LstmLayer( Xtrain, Ytrain, optim = 'momentum', learning_rate = .0001,
 clip_gradient = True )
 traincost = []
 for i in range(50):
