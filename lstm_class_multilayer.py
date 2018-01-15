@@ -32,18 +32,18 @@ class LstmLayer( object ):
 			respectively.
 		Wy, by, dWy, dby: The matrices storing the projection (output) layer weights and
 			biases and their gradients, respectively.
-		FIOC, FIOC_f, dFIOC, dFIOC_f: The matrices storing the gate values and their 
-			activations, and their respective gradients (i.e., the gradients 
-			before they have been 'passed through' the derivative of the 
-			activation functions). 
+		FIOC, FIOC_f, dFIOC, dFIOC_f: The matrices ('caches') storing the gate values 
+			and their activations, and their respective gradients (i.e., the 
+			gradients before and after they have been 'passed through' the derivative 
+			of the activation functions) at each timepoint.
 		f, i, o, c: Indexing variables to more clearly and concisely call the 
 			individual gate elements of the FIOC set of matrices.
-		cellstate, cellstate_f, dcellstate: The LSTM layer's cell state, its
-			activation, and its gradient.
-		hiddenstate, dh: The LSTM layer's hidden state and its gradient.
+		cellstate, cellstate_f, dcellstate: The cache storing the LSTM layer's cell state
+			its activation, and its gradient, at each timepoint. 
+		hiddenstate, dh: The LSTM layer's hidden state and its gradient at each timepoint.
 		hx, dx: The LSTM layer's input and its gradient (NOTE: dx is just the
 			gradient of the input, which can be passed down to lower
-			layers). 
+			layers) at each timepoint. 
 		h0, c0, dh0, dc0: The initial values of the hidden state and cell state and
 			their gradients, respectively. 
 		output: The output of the LSTM layer, of shape [ batch_size, n_timesteps,
